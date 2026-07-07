@@ -1,0 +1,13 @@
+{
+  "name": "expense-tracker",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "mobile": "npm run start -w mobile",
+    "mobile:web": "npm run web -w mobile",
+    "test": "npm run test -w @expense-tracker/shared"
+  }
+}
