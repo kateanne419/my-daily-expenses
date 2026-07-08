@@ -14,7 +14,7 @@ const LINKS = [
   { href: '/debts', title: 'Debts', subtitle: 'Splitwise + personal debts' },
   { href: '/budgets', title: 'Budgets', subtitle: 'Fixed and variable' },
   { href: '/income', title: 'Income', subtitle: 'Monthly income sources' },
-  { href: '/settings', title: 'Settings', subtitle: 'Export, import, sign out' },
+  { href: '/settings', title: 'Settings', subtitle: 'Cloud sync and sign out' },
 ] as const;
 
 export default function MoreScreen() {

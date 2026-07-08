@@ -9,12 +9,13 @@ import { Text } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { formatPhp, parseAmount } from '@/lib/format';
+import { useActiveMonth } from '@/lib/hooks';
 import { useAppStore } from '@/lib/store';
 import { computeTotalIncome } from '@expense-tracker/shared';
 
 export default function IncomeScreen() {
   const scheme = useColorScheme() ?? 'light';
-  const sources = useAppStore((s) => s.month.incomeSources);
+  const sources = useActiveMonth().incomeSources;
   const addSource = useAppStore((s) => s.addIncomeSource);
   const total = computeTotalIncome(sources);
   const [name, setName] = useState('');

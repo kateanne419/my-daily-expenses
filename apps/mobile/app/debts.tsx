@@ -9,12 +9,13 @@ import { Text } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { formatPhp, parseAmount } from '@/lib/format';
+import { useActiveMonth } from '@/lib/hooks';
 import { useAppStore } from '@/lib/store';
 import { computeDebtNet } from '@expense-tracker/shared';
 
 export default function DebtsScreen() {
   const scheme = useColorScheme() ?? 'light';
-  const month = useAppStore((s) => s.month);
+  const month = useActiveMonth();
   const addDebt = useAppStore((s) => s.addPersonalDebt);
   const settleDebt = useAppStore((s) => s.settlePersonalDebt);
   const splitwise = month.accounts.find((a) => a.type === 'splitwise');

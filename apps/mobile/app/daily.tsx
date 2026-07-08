@@ -6,12 +6,12 @@ import { Text } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { formatPhp } from '@/lib/format';
-import { useAppStore } from '@/lib/store';
+import { useActiveMonth } from '@/lib/hooks';
 import { computeDailyMTD } from '@expense-tracker/shared';
 
 export default function DailyScreen() {
   const scheme = useColorScheme() ?? 'light';
-  const daily = useAppStore((s) => s.month.dailySummaries);
+  const daily = useActiveMonth().dailySummaries;
   const mtd = computeDailyMTD(daily);
   const rows = daily.filter((d) => !d.is_opening_snapshot);
   const max = Math.max(...rows.map((d) => d.amount), 1);

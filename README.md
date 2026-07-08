@@ -1,12 +1,12 @@
 # Expense Tracker
 
-Cross-platform expense tracker (iOS, Android, web) mirroring your Daily Expenses Google Sheet.
+Cross-platform expense tracker (iOS, Android, web) for daily expenses in PHP.
 
 ## Stack
 
 - **Expo Router** — mobile + web UI
-- **Supabase** — Postgres, auth, sync (optional; runs locally with demo data)
-- **@expense-tracker/shared** — calculation engine with June 2026 test fixtures
+- **Supabase** — Postgres, auth, sync (optional; runs locally by default)
+- **@expense-tracker/shared** — calculation engine and unit tests
 
 ## Quick start
 
@@ -16,7 +16,7 @@ npm install
 npm run mobile:web    # or: npm run mobile
 ```
 
-Open the **Entry** tab to log expenses/transfers. **Dashboard** shows on-hand, budgets, insights, predictions, and tips.
+The app starts on the **current month** with empty balances, budgets, and transactions. Use the Dashboard arrows to switch months. Log expenses and transfers from the **Entry** tab.
 
 ## Supabase setup
 
@@ -28,12 +28,6 @@ Open the **Entry** tab to log expenses/transfers. **Dashboard** shows on-hand, b
 
 ```bash
 npm test
-```
-
-## Google Sheets import
-
-```bash
-GOOGLE_ACCESS_TOKEN=... npx tsx scripts/import-google-sheet.ts
 ```
 
 See `docs/spreadsheet-formulas.md` for calculation specs.

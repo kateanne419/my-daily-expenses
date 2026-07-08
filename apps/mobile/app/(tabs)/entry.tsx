@@ -8,23 +8,30 @@ import { Text } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { formatPhp, parseAmount, todayISO } from '@/lib/format';
+import { useActiveMonth } from '@/lib/hooks';
 import { TRANSACTION_CATEGORIES, useAppStore } from '@/lib/store';
 
-type PickerTarget = 'account' | 'from' | 'to' | null;
+type PickerTarget = 'account' | 'from' | 'to' | 'toCard' | 'fromLiquid' | null;
 
 export default function EntryScreen() {
   const scheme = useColorScheme() ?? 'light';
-  const month = useAppStore((s) => s.month);
+  const month = useActiveMonth();
   const mode = useAppStore((s) => s.entryMode);
   const setMode = useAppStore((s) => s.setEntryMode);
   const addTransaction = useAppStore((s) => s.addTransaction);
   const addTransfer = useAppStore((s) => s.addTransfer);
+  const addCreditCardPayment = useAppStore((s) => s.addCreditCardPayment);
+
+  const cards = month.accounts.filter((a) => a.type === 'credit_card');
+  const liquidAccounts = month.accounts.filter((a) => a.type !== 'credit_card');
 
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState(todayISO());
   const [accountId, setAccountId] = useState('');
   const [fromId, setFromId] = useState('');
   const [toId, setToId] = useState('');
+  const [toCardId, setToCardId] = useState('');
+  const [fromLiquidId, setFromLiquidId] = useState('');
   const [category, setCategory] = useState<(typeof TRANSACTION_CATEGORIES)[number]>('Food');
   const [description, setDescription] = useState('');
   const [notes, setNotes] = useState('');
@@ -65,16 +72,34 @@ export default function EntryScreen() {
       return;
     }
 
-    if (!fromId || !toId) {
-      Alert.alert('Accounts required', 'Choose both source and target accounts.');
+    if (mode === 'transfer') {
+      if (!fromId || !toId) {
+        Alert.alert('Accounts required', 'Choose both source and target accounts.');
+        return;
+      }
+      if (fromId === toId) {
+        Alert.alert('Invalid transfer', 'Source and target must differ.');
+        return;
+      }
+      addTransfer({ date, fromAccountId: fromId, toAccountId: toId, amount: parsed, notes: notes || undefined });
+      Alert.alert('Saved', `Transfer ${formatPhp(parsed)} recorded.`, [
+        { text: 'Add another', onPress: resetFields },
+        { text: 'OK', onPress: resetFields },
+      ]);
       return;
     }
-    if (fromId === toId) {
-      Alert.alert('Invalid transfer', 'Source and target must differ.');
+
+    if (!toCardId || !fromLiquidId) {
+      Alert.alert('Missing fields', 'Choose the card and source account.');
       return;
     }
-    addTransfer({ date, fromAccountId: fromId, toAccountId: toId, amount: parsed, notes: notes || undefined });
-    Alert.alert('Saved', `Transfer ${formatPhp(parsed)} recorded.`, [
+    addCreditCardPayment({
+      date,
+      toCardAccountId: toCardId,
+      fromAccountId: fromLiquidId,
+      amount: parsed,
+    });
+    Alert.alert('Saved', `Card payment ${formatPhp(parsed)} recorded.`, [
       { text: 'Add another', onPress: resetFields },
       { text: 'OK', onPress: resetFields },
     ]);
@@ -86,6 +111,7 @@ export default function EntryScreen() {
         <View style={styles.toggle}>
           <Chip label="Expense" selected={mode === 'expense'} onPress={() => setMode('expense')} />
           <Chip label="Transfer" selected={mode === 'transfer'} onPress={() => setMode('transfer')} />
+          <Chip label="CC Payment" selected={mode === 'cc_payment'} onPress={() => setMode('cc_payment')} />
         </View>
 
         <FormField
@@ -103,7 +129,7 @@ export default function EntryScreen() {
               label="Deducted from"
               value={accountId ? accountName(accountId) : ''}
               editable={false}
-              onPressIn={() => setPicker('account')}
+              onPress={() => setPicker('account')}
               placeholder="Tap to select account"
             />
             <Text style={styles.label}>Category</Text>
@@ -123,25 +149,46 @@ export default function EntryScreen() {
               />
             )}
           </>
-        ) : (
+        ) : null}
+
+        {mode === 'transfer' ? (
           <>
             <FormField
               label="From account"
               value={fromId ? accountName(fromId) : ''}
               editable={false}
-              onPressIn={() => setPicker('from')}
+              onPress={() => setPicker('from')}
               placeholder="Tap to select source"
             />
             <FormField
               label="To account"
               value={toId ? accountName(toId) : ''}
               editable={false}
-              onPressIn={() => setPicker('to')}
+              onPress={() => setPicker('to')}
               placeholder="Tap to select target"
             />
             <FormField label="Notes (optional)" value={notes} onChangeText={setNotes} placeholder="e.g. salary move" />
           </>
-        )}
+        ) : null}
+
+        {mode === 'cc_payment' ? (
+          <>
+            <FormField
+              label="Pay to card"
+              value={toCardId ? accountName(toCardId) : ''}
+              editable={false}
+              onPress={() => setPicker('toCard')}
+              placeholder="Tap to select card"
+            />
+            <FormField
+              label="Pay from"
+              value={fromLiquidId ? accountName(fromLiquidId) : ''}
+              editable={false}
+              onPress={() => setPicker('fromLiquid')}
+              placeholder="Tap to select source account"
+            />
+          </>
+        ) : null}
 
         <PrimaryButton label="Save" onPress={handleSave} />
       </ScrollView>
@@ -170,6 +217,22 @@ export default function EntryScreen() {
         onSelect={setToId}
         onClose={() => setPicker(null)}
       />
+      <AccountPickerModal
+        visible={picker === 'toCard'}
+        title="Pay to card"
+        accounts={cards}
+        selectedId={toCardId}
+        onSelect={setToCardId}
+        onClose={() => setPicker(null)}
+      />
+      <AccountPickerModal
+        visible={picker === 'fromLiquid'}
+        title="Pay from"
+        accounts={liquidAccounts}
+        selectedId={fromLiquidId}
+        onSelect={setFromLiquidId}
+        onClose={() => setPicker(null)}
+      />
     </SafeAreaView>
   );
 }
@@ -177,7 +240,7 @@ export default function EntryScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   content: { padding: 16, paddingBottom: 32 },
-  toggle: { flexDirection: 'row', marginBottom: 16 },
+  toggle: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 16 },
   label: { fontSize: 13, fontWeight: '600', marginBottom: 6, opacity: 0.8 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 },
 });

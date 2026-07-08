@@ -6,12 +6,13 @@ import { Text } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { formatPhp } from '@/lib/format';
-import { useAppStore } from '@/lib/store';
+import { useActiveMonth } from '@/lib/hooks';
 
 export default function TransactionsScreen() {
   const scheme = useColorScheme() ?? 'light';
-  const transactions = useAppStore((s) => s.month.transactions);
-  const accounts = useAppStore((s) => s.month.accounts);
+  const month = useActiveMonth();
+  const transactions = month.transactions;
+  const accounts = month.accounts;
 
   const accountName = (id: string) => accounts.find((a) => a.id === id)?.name ?? id;
 

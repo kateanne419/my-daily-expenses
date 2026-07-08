@@ -4,28 +4,43 @@ import Colors from '@/constants/Colors';
 import { Text } from '@/components/Themed';
 import { useColorScheme } from '@/components/useColorScheme';
 
-interface Props extends TextInputProps {
+interface Props extends Omit<TextInputProps, 'onPress'> {
   label: string;
+  onPress?: () => void;
 }
 
-export function FormField({ label, style, ...props }: Props) {
+export function FormField({ label, style, editable = true, onPress, ...props }: Props) {
   const scheme = useColorScheme() ?? 'light';
+  const isPicker = editable === false && onPress;
+
+  const input = (
+    <TextInput
+      placeholderTextColor={Colors[scheme].tabIconDefault}
+      style={[
+        styles.input,
+        {
+          color: Colors[scheme].text,
+          backgroundColor: Colors[scheme].card,
+          borderColor: Colors[scheme].border,
+        },
+        style,
+      ]}
+      editable={editable}
+      pointerEvents={isPicker ? 'none' : 'auto'}
+      {...props}
+    />
+  );
+
   return (
     <View style={styles.wrap}>
       <Text style={styles.label}>{label}</Text>
-      <TextInput
-        placeholderTextColor={Colors[scheme].tabIconDefault}
-        style={[
-          styles.input,
-          {
-            color: Colors[scheme].text,
-            backgroundColor: Colors[scheme].card,
-            borderColor: Colors[scheme].border,
-          },
-          style,
-        ]}
-        {...props}
-      />
+      {isPicker ? (
+        <Pressable onPress={onPress} accessibilityRole="button">
+          {input}
+        </Pressable>
+      ) : (
+        input
+      )}
     </View>
   );
 }

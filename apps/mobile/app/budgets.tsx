@@ -7,13 +7,15 @@ import { Text } from '@/components/Themed';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { formatPhp } from '@/lib/format';
+import { useActiveMonth } from '@/lib/hooks';
 import { useAppStore } from '@/lib/store';
 import { computeVariableRemaining } from '@expense-tracker/shared';
 
 export default function BudgetsScreen() {
   const scheme = useColorScheme() ?? 'light';
-  const fixed = useAppStore((s) => s.month.fixedBudgets);
-  const variable = useAppStore((s) => s.month.variableBudgets);
+  const month = useActiveMonth();
+  const fixed = month.fixedBudgets;
+  const variable = month.variableBudgets;
   const updateFixed = useAppStore((s) => s.updateFixedBudget);
   const remaining = computeVariableRemaining(variable);
 

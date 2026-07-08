@@ -20,6 +20,7 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Dashboard',
+          headerShown: false,
           tabBarIcon: ({ color }) => (
             <SymbolView name={{ ios: 'chart.bar', android: 'home', web: 'home' }} tintColor={color} size={24} />
           ),
