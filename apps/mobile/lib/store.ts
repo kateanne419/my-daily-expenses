@@ -3,6 +3,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import {
   addMonths,
   cloneAccountsForNewMonth,
+  computeCategorySpent,
   createEmptyMonth,
   createInitialMonths,
   isFutureMonth,
@@ -41,6 +42,7 @@ export interface AppState {
     accountId: string;
     description?: string;
   }) => void;
+  deleteTransaction: (transactionId: string) => void;
   addTransfer: (input: {
     date: string;
     fromAccountId: string;
@@ -56,6 +58,13 @@ export interface AppState {
     credit_limit?: number | null;
   }) => void;
   updateFixedBudget: (id: string, patch: Partial<FixedBudget>) => void;
+  addFixedBudget: (input: {
+    name: string;
+    budget_amount: number;
+    due_date?: string;
+    is_savings?: boolean;
+  }) => void;
+  deleteFixedBudget: (id: string) => void;
   updateVariableBudget: (id: string, patch: Partial<VariableBudget>) => void;
   addIncomeSource: (name: string, amount: number) => void;
   updateIncomeSource: (id: string, patch: Partial<IncomeSource>) => void;
@@ -83,6 +92,23 @@ function bumpDaily(month: MonthData, date: string, amount: number) {
   month.dailySummaries.sort((a, b) => a.date.localeCompare(b.date));
 }
 
+function syncVariableSpentFromTransactions(month: MonthData) {
+  const spentByCategory = computeCategorySpent(month.transactions);
+  for (const vb of month.variableBudgets) {
+    vb.spent_amount = spentByCategory[vb.category] ?? 0;
+  }
+}
+
+function syncDailyFromTransactions(month: MonthData) {
+  const snapshots = month.dailySummaries.filter((d) => d.is_opening_snapshot);
+  const totals = new Map<string, number>();
+  for (const tx of month.transactions) {
+    totals.set(tx.date, (totals.get(tx.date) ?? 0) + tx.amount);
+  }
+  const fromTransactions = Array.from(totals.entries()).map(([date, amount]) => ({ date, amount }));
+  month.dailySummaries = [...snapshots, ...fromTransactions].sort((a, b) => a.date.localeCompare(b.date));
+}
+
 function debitAccount(accounts: Account[], accountId: string, amount: number) {
   const acct = accounts.find((a) => a.id === accountId);
   if (acct) acct.current_balance -= amount;
@@ -96,10 +122,28 @@ function creditAccount(accounts: Account[], accountId: string, amount: number) {
 function patchActiveMonth(
   state: AppState,
   mutator: (month: MonthData) => void
-): Pick<AppState, 'months'> {
-  const month = structuredClone(state.months[state.activeMonthId]);
+): Pick<AppState, 'months' | 'activeMonthId'> {
+  return patchMonthById(state, state.activeMonthId, mutator);
+}
+
+function patchMonthById(
+  state: AppState,
+  monthId: string,
+  mutator: (month: MonthData) => void
+): Pick<AppState, 'months' | 'activeMonthId'> {
+  let targetMonthId = monthId;
+  let existing = state.months[targetMonthId];
+  if (!existing) {
+    const fallback = createInitialMonths(state.userId);
+    targetMonthId = fallback.activeMonthId;
+    existing = fallback.months[targetMonthId];
+  }
+  const month = structuredClone(existing);
   mutator(month);
-  return { months: { ...state.months, [state.activeMonthId]: month } };
+  return {
+    months: { ...state.months, [targetMonthId]: month },
+    activeMonthId: state.activeMonthId,
+  };
 }
 
 export const useAppStore = create<AppState>()(
@@ -155,6 +199,26 @@ export const useAppStore = create<AppState>()(
             bumpDaily(month, date, amount);
           })
         );
+      },
+      deleteTransaction: (transactionId) => {
+        set((state) => {
+          for (const monthId of Object.keys(state.months)) {
+            const source = state.months[monthId];
+            const index = source.transactions.findIndex((tx) => tx.id === transactionId);
+            if (index === -1) continue;
+
+            return patchMonthById(state, monthId, (month) => {
+              const txIndex = month.transactions.findIndex((tx) => tx.id === transactionId);
+              if (txIndex === -1) return;
+              const tx = month.transactions[txIndex];
+              month.transactions.splice(txIndex, 1);
+              creditAccount(month.accounts, tx.account_id, tx.amount);
+              syncVariableSpentFromTransactions(month);
+              syncDailyFromTransactions(month);
+            });
+          }
+          return {};
+        });
       },
       addTransfer: ({ date, fromAccountId, toAccountId, amount, notes }) => {
         set((state) =>
@@ -219,6 +283,32 @@ export const useAppStore = create<AppState>()(
           patchActiveMonth(state, (month) => {
             const item = month.fixedBudgets.find((f) => f.id === id);
             if (item) Object.assign(item, patch);
+          })
+        );
+      },
+      addFixedBudget: ({ name, budget_amount, due_date, is_savings }) => {
+        const trimmed = name.trim();
+        if (!trimmed) return;
+        set((state) =>
+          patchActiveMonth(state, (month) => {
+            month.fixedBudgets.push({
+              id: uid(),
+              user_id: state.userId,
+              month_id: month.monthId,
+              name: trimmed,
+              budget_amount,
+              spent_amount: 0,
+              is_paid: false,
+              due_date: due_date ?? null,
+              is_savings: is_savings ?? false,
+            });
+          })
+        );
+      },
+      deleteFixedBudget: (id) => {
+        set((state) =>
+          patchActiveMonth(state, (month) => {
+            month.fixedBudgets = month.fixedBudgets.filter((f) => f.id !== id);
           })
         );
       },

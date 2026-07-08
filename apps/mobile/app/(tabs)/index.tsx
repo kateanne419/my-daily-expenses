@@ -81,17 +81,17 @@ export default function DashboardScreen() {
           <Metric label="Savings" value={formatPhp(summary.totalSavings)} />
         </View>
 
-        <Section title="Budget vs actual">
+        <Section title="Budget vs actual" href="/budgets" linkLabel="Manage">
           <BudgetTable
             title="Fixed"
             rows={fixedRows}
-            emptyMessage="No fixed budgets yet."
+            emptyMessage="No fixed budgets yet. Tap Manage to add one."
             scheme={scheme}
           />
           <BudgetTable
             title="Variable"
             rows={variableRows}
-            emptyMessage="Set variable budgets to track categories."
+            emptyMessage="Set variable budgets under Manage."
             scheme={scheme}
           />
         </Section>

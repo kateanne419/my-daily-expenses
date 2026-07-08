@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Keyboard, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AccountPickerModal } from '@/components/AccountPickerModal';
+import { DateField } from '@/components/DateField';
 import { Chip, FormField, PrimaryButton } from '@/components/FormField';
 import { Text } from '@/components/Themed';
 import Colors from '@/constants/Colors';
@@ -37,6 +38,8 @@ export default function EntryScreen() {
   const [notes, setNotes] = useState('');
   const [showDesc, setShowDesc] = useState(false);
   const [picker, setPicker] = useState<PickerTarget>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const accountName = (id: string) => month.accounts.find((a) => a.id === id)?.name ?? 'Select account';
 
@@ -46,16 +49,35 @@ export default function EntryScreen() {
     setNotes('');
   }
 
+  function showValidationError(title: string, message: string) {
+    setSuccess(null);
+    setError(message);
+    Alert.alert(title, message);
+  }
+
+  function showSuccessMessage(message: string) {
+    setError(null);
+    setSuccess(message);
+    Alert.alert('Saved', message, [
+      { text: 'Add another', onPress: resetFields },
+      { text: 'OK', onPress: resetFields },
+    ]);
+  }
+
   function handleSave() {
+    Keyboard.dismiss();
+    setError(null);
+    setSuccess(null);
+
     const parsed = parseAmount(amount);
     if (!parsed) {
-      Alert.alert('Invalid amount', 'Enter an amount greater than zero.');
+      showValidationError('Invalid amount', 'Enter an amount greater than zero.');
       return;
     }
 
     if (mode === 'expense') {
       if (!accountId) {
-        Alert.alert('Account required', 'Choose which account to deduct from.');
+        showValidationError('Account required', 'Choose which account to deduct from.');
         return;
       }
       addTransaction({
@@ -65,32 +87,28 @@ export default function EntryScreen() {
         accountId,
         description: description || undefined,
       });
-      Alert.alert('Saved', `Expense ${formatPhp(parsed)} recorded.`, [
-        { text: 'Add another', onPress: resetFields },
-        { text: 'OK', onPress: resetFields },
-      ]);
+      showSuccessMessage(`Expense ${formatPhp(parsed)} recorded.`);
+      resetFields();
       return;
     }
 
     if (mode === 'transfer') {
       if (!fromId || !toId) {
-        Alert.alert('Accounts required', 'Choose both source and target accounts.');
+        showValidationError('Accounts required', 'Choose both source and target accounts.');
         return;
       }
       if (fromId === toId) {
-        Alert.alert('Invalid transfer', 'Source and target must differ.');
+        showValidationError('Invalid transfer', 'Source and target must differ.');
         return;
       }
       addTransfer({ date, fromAccountId: fromId, toAccountId: toId, amount: parsed, notes: notes || undefined });
-      Alert.alert('Saved', `Transfer ${formatPhp(parsed)} recorded.`, [
-        { text: 'Add another', onPress: resetFields },
-        { text: 'OK', onPress: resetFields },
-      ]);
+      showSuccessMessage(`Transfer ${formatPhp(parsed)} recorded.`);
+      resetFields();
       return;
     }
 
     if (!toCardId || !fromLiquidId) {
-      Alert.alert('Missing fields', 'Choose the card and source account.');
+      showValidationError('Missing fields', 'Choose the card and source account.');
       return;
     }
     addCreditCardPayment({
@@ -99,15 +117,16 @@ export default function EntryScreen() {
       fromAccountId: fromLiquidId,
       amount: parsed,
     });
-    Alert.alert('Saved', `Card payment ${formatPhp(parsed)} recorded.`, [
-      { text: 'Add another', onPress: resetFields },
-      { text: 'OK', onPress: resetFields },
-    ]);
+    showSuccessMessage(`Card payment ${formatPhp(parsed)} recorded.`);
+    resetFields();
   }
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: Colors[scheme].background }]} edges={['bottom']}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="always">
         <View style={styles.toggle}>
           <Chip label="Expense" selected={mode === 'expense'} onPress={() => setMode('expense')} />
           <Chip label="Transfer" selected={mode === 'transfer'} onPress={() => setMode('transfer')} />
@@ -121,7 +140,7 @@ export default function EntryScreen() {
           keyboardType="decimal-pad"
           placeholder="0.00"
         />
-        <FormField label="Date" value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" />
+        <DateField label="Date" value={date} onChange={setDate} />
 
         {mode === 'expense' ? (
           <>
@@ -189,9 +208,13 @@ export default function EntryScreen() {
             />
           </>
         ) : null}
-
-        <PrimaryButton label="Save" onPress={handleSave} />
       </ScrollView>
+
+      <View style={[styles.footer, { borderTopColor: Colors[scheme].border, backgroundColor: Colors[scheme].background }]}>
+        {error ? <Text style={[styles.feedback, { color: Colors[scheme].danger }]}>{error}</Text> : null}
+        {success ? <Text style={[styles.feedback, { color: Colors[scheme].success }]}>{success}</Text> : null}
+        <PrimaryButton label="Save" onPress={handleSave} />
+      </View>
 
       <AccountPickerModal
         visible={picker === 'account'}
@@ -239,7 +262,10 @@ export default function EntryScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  content: { padding: 16, paddingBottom: 32 },
+  scroll: { flex: 1 },
+  content: { padding: 16, paddingBottom: 16 },
+  footer: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12, borderTopWidth: StyleSheet.hairlineWidth },
+  feedback: { fontSize: 14, fontWeight: '600', marginBottom: 8, textAlign: 'center' },
   toggle: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 16 },
   label: { fontSize: 13, fontWeight: '600', marginBottom: 6, opacity: 0.8 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 },

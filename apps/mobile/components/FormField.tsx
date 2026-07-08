@@ -82,6 +82,7 @@ export function PrimaryButton({
     <Pressable
       disabled={disabled}
       onPress={onPress}
+      accessibilityRole="button"
       style={[styles.button, { backgroundColor: Colors[scheme].tint, opacity: disabled ? 0.5 : 1 }]}>
       <Text style={styles.buttonText}>{label}</Text>
     </Pressable>

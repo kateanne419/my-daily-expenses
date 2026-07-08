@@ -1,18 +1,24 @@
 import { useMemo } from 'react';
 import {
   computeMonthlySummary,
+  createInitialMonths,
   generatePredictions,
   generateTips,
 } from '@expense-tracker/shared';
-import { selectActiveMonth, useAppStore } from '@/lib/store';
+import { useAppStore } from '@/lib/store';
 
 export function useActiveMonth() {
-  return useAppStore(selectActiveMonth);
+  return useAppStore((state) => {
+    const month = state.months[state.activeMonthId];
+    if (month) return month;
+    const fallback = createInitialMonths(state.userId);
+    return fallback.months[fallback.activeMonthId];
+  });
 }
 
 export function useCanGoToNextMonth() {
   const activeMonthId = useAppStore((s) => s.activeMonthId);
-  const active = useAppStore(selectActiveMonth);
+  const active = useActiveMonth();
   return useMemo(() => {
     const now = new Date();
     const currentYear = now.getFullYear();
